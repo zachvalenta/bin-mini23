@@ -30,7 +30,7 @@ mvrm="$(git ls-files --deleted)"
 mvrm_bg="orangered"
 mvrm_fg="$(pastel textcolor "$mvrm_bg")"
 if [ -n "$mvrm" ]; then
-    pastel paint "$mvrm_fg" --on "$mvrm_bg" " moved / removed files "
+    pastel paint "$mvrm_fg" --on "$mvrm_bg" " (re)moved files "
     echo -en "\n${mvrm}\n\n"
 fi
 
