@@ -6,3 +6,5 @@ procs --sortd mem | awk '{ print substr($0, 1, 100) }' | head -n 100 > $OUTPUT_D
 
 cd ~/Documents/zv/
 dust -ji -z 30MB -d 3 > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_storage.txt"
+
+python -m platform > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_arch.txt"
