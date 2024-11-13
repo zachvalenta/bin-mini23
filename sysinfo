@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+DENV_DIR="$HOME/Documents/denv"
+
+procs --sortd mem | awk '{ print substr($0, 1, 100) }' | head -n 100 > $DENV_DIR/logs/sys-info/"$(date +'%y%m%d_%H%M%S').txt"
