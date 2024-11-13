@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
-DENV_DIR="$HOME/Documents/denv"
+OUTPUT_DIR="$HOME/Documents/denv/logs/sys-info"
 
-procs --sortd mem | awk '{ print substr($0, 1, 100) }' | head -n 100 > $DENV_DIR/logs/sys-info/"$(date +'%y%m%d_%H%M%S').txt"
+procs --sortd mem | awk '{ print substr($0, 1, 100) }' | head -n 100 > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_proc.txt"
+
+cd ~/Documents/zv/
+dust -ji -z 30MB -d 3 > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_storage.txt"
