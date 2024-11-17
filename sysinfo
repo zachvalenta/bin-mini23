@@ -14,20 +14,31 @@ BEGIN { print "name,cpu,mem" }
 /\/System\/Library\/PrivateFrameworks\/CoreSpeech|\/System\/Library\/PrivateFrameworks\/CacheDelete/ {private_services_cpu+=$3; private_services_mem+=$4}
 /\/System\/Applications\/Stocks.app|\/System\/Applications\/News.app|\/System\/Applications\/Weather.app|\/System\/Applications\/TextEdit.app/ {builtin_apps_cpu+=$3; builtin_apps_mem+=$4}
 /\/Applications\/Google Drive.app/ {gdrive_cpu+=$3; gdrive_mem+=$4}
+function format_with_leading_zero(value) {
+  if (value < 10) {
+    return sprintf("0%.2f", value)
+  } else {
+    return sprintf("%.2f", value)
+  }
+}
 END {
-  # Print in CSV format
+  # Print individual categories with leading zeros
   printf "Brave,%.2f,%.2f\n", brave_cpu, brave_mem
-  printf "Google Chrome,%.2f,%.2f\n", chrome_cpu, chrome_mem
-  printf "Google Drive,%.2f,%.2f\n", gdrive_cpu, gdrive_mem
-  printf "iTerm,%.2f,%.2f\n", iterm_cpu, iterm_mem
-  printf "Visual Studio Code,%.2f,%.2f\n", vscode_cpu, vscode_mem
-  printf "macOS core services,%.2f,%.2f\n", core_services_cpu, core_services_mem
-  printf "macOS private services,%.2f,%.2f\n", private_services_cpu, private_services_mem
-  printf "macOS built-in apps,%.2f,%.2f\n", builtin_apps_cpu, builtin_apps_mem
+  printf "Google Chrome,%s,%s\n", format_with_leading_zero(chrome_cpu), format_with_leading_zero(chrome_mem)
+  printf "Visual Studio Code,%s,%s\n", format_with_leading_zero(vscode_cpu), format_with_leading_zero(vscode_mem)
+  printf "iTerm,%s,%s\n", format_with_leading_zero(iterm_cpu), format_with_leading_zero(iterm_mem)
+  printf "macOS core services,%s,%s\n", format_with_leading_zero(core_services_cpu), format_with_leading_zero(core_services_mem)
+  printf "macOS private services,%s,%s\n", format_with_leading_zero(private_services_cpu), format_with_leading_zero(private_services_mem)
+  printf "macOS built-in apps,%s,%s\n", format_with_leading_zero(builtin_apps_cpu), format_with_leading_zero(builtin_apps_mem)
+  printf "Google Drive,%s,%s\n", format_with_leading_zero(gdrive_cpu), format_with_leading_zero(gdrive_mem)
+  # Calculate and print totals with leading zeros
+  total_cpu = brave_cpu + chrome_cpu + vscode_cpu + iterm_cpu + core_services_cpu + private_services_cpu + builtin_apps_cpu + gdrive_cpu
+  total_mem = brave_mem + chrome_mem + vscode_mem + iterm_mem + core_services_mem + private_services_mem + builtin_apps_mem + gdrive_mem
+  printf "Total,%s,%s\n", format_with_leading_zero(total_cpu), format_with_leading_zero(total_mem)
 }' > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_proc.csv"
 
 # 💿 DISK
-df -h > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_storage.txt"
+df -h > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_disk.txt"
 
 # 🪟 PORTS
 havn -am > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_ports.txt"
