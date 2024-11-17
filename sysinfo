@@ -2,9 +2,32 @@
 
 OUTPUT_DIR="$HOME/Documents/denv/logs/sys-info"
 
-procs --sortd mem | awk '{ print substr($0, 1, 100) }' | head -n 100 > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_proc.txt"
+# 🤖 MEM/CPU
+ps aux | grep -E "Google Chrome|Brave Browser|Visual Studio Code|iTerm|/System/Library/CoreServices/|/System/Library/PrivateFrameworks/CoreSpeech|/System/Library/PrivateFrameworks/CacheDelete|/System/Applications/Stocks.app|/System/Applications/News.app|/System/Applications/Weather.app|/System/Applications/TextEdit.app|/Applications/Google Drive.app" | \
+awk '
+BEGIN { print "name,cpu,mem" }
+/Google Chrome/ {chrome_cpu+=$3; chrome_mem+=$4}
+/Brave Browser/ {brave_cpu+=$3; brave_mem+=$4}
+/Visual Studio Code/ {vscode_cpu+=$3; vscode_mem+=$4}
+/iTerm/ {iterm_cpu+=$3; iterm_mem+=$4}
+/\/System\/Library\/CoreServices/ {core_services_cpu+=$3; core_services_mem+=$4}
+/\/System\/Library\/PrivateFrameworks\/CoreSpeech|\/System\/Library\/PrivateFrameworks\/CacheDelete/ {private_services_cpu+=$3; private_services_mem+=$4}
+/\/System\/Applications\/Stocks.app|\/System\/Applications\/News.app|\/System\/Applications\/Weather.app|\/System\/Applications\/TextEdit.app/ {builtin_apps_cpu+=$3; builtin_apps_mem+=$4}
+/\/Applications\/Google Drive.app/ {gdrive_cpu+=$3; gdrive_mem+=$4}
+END {
+  # Print in CSV format
+  printf "Brave,%.2f,%.2f\n", brave_cpu, brave_mem
+  printf "Google Chrome,%.2f,%.2f\n", chrome_cpu, chrome_mem
+  printf "Google Drive,%.2f,%.2f\n", gdrive_cpu, gdrive_mem
+  printf "iTerm,%.2f,%.2f\n", iterm_cpu, iterm_mem
+  printf "Visual Studio Code,%.2f,%.2f\n", vscode_cpu, vscode_mem
+  printf "macOS core services,%.2f,%.2f\n", core_services_cpu, core_services_mem
+  printf "macOS private services,%.2f,%.2f\n", private_services_cpu, private_services_mem
+  printf "macOS built-in apps,%.2f,%.2f\n", builtin_apps_cpu, builtin_apps_mem
+}' > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_proc.csv"
 
-cd ~/Documents/zv/
-dust -ji -z 30MB -d 3 > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_storage.txt"
+# 💿 DISK
+df -h > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_storage.txt"
 
-python -m platform > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_arch.txt"
+# 🪟 PORTS
+havn -am > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_ports.txt"
