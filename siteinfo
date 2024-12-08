@@ -13,19 +13,23 @@
 # HTTP: STATUS CODE PASS/FAIL
 ###
 
-control="$(curl -o /dev/null -s -w "%{http_code}\n" https://liyasthomas.github.io/)"
-treatment="$(curl -o /dev/null -s -w "%{http_code}\n" https://zjayv.github.io/)"
-statuses=($control $treatment)
+control_url="https://liyasthomas.github.io/"
+control_status=$(curl -o /dev/null -s -w "%{http_code}" "$control_url")
+control="$control_url,$control_status"
+treatment_url="https://zjayv.github.io/"
+treatment_status=$(curl -o /dev/null -s -w "%{http_code}" "$treatment_url")
+treatment="$treatment_url,$treatment_status"
+sites=($control $treatment)
 
-for status in "${statuses[@]}"; do
-  if [[ "$status" == "200" ]]; then
+for site in "${sites[@]}"; do
+  if [[ "$(echo "$site" | cut -d ',' -f 2)" == "200" ]]; then
     bg="green"
     fg="$(pastel textcolor "$bg")"
-    pastel paint "$fg" --on "$bg" "$status"
+    pastel paint "$fg" --on "$bg" "url: $(echo "$site" | cut -d ',' -f 1) status: $(echo "$site" | cut -d ',' -f 2)"
   else
     bg="red"
     fg="$(pastel textcolor "$bg")"
-    pastel paint "$fg" --on "$bg" "$status"
+    pastel paint "$fg" --on "$bg" "url: $(echo "$site" | cut -d ',' -f 1) status: $(echo "$site" | cut -d ',' -f 2)"
   fi
 done
 
