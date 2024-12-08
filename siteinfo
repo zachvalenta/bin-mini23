@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+###
+# DNS
+###
+
+# doggo zachvalenta.com --time
+# doggo liyasthomas.github.io --time
+# doggo zjayv.github.io --time
+# doggo zjayv.com --time
+
+###
+# HTTP: STATUS CODE PASS/FAIL
+###
+
+control="$(curl -o /dev/null -s -w "%{http_code}\n" https://liyasthomas.github.io/)"
+treatment="$(curl -o /dev/null -s -w "%{http_code}\n" https://zjayv.github.io/)"
+statuses=($control $treatment)
+
+for status in "${statuses[@]}"; do
+  if [[ "$status" == "200" ]]; then
+    bg="green"
+    fg="$(pastel textcolor "$bg")"
+    pastel paint "$fg" --on "$bg" "$status"
+  else
+    bg="red"
+    fg="$(pastel textcolor "$bg")"
+    pastel paint "$fg" --on "$bg" "$status"
+  fi
+done
+
+###
+# HTTP: DEBUG
+###
+
+# curl -I https://liyasthomas.github.io/
+# curl -I https://zjayv.github.io/
