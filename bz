@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+GLOBAL_HISTORY="$HOME/Documents/denv/dotfiles/ai/aider-global-history.md"
+LOCAL_HISTORY="$PWD/.aider.chat.history.md"
+
+echo "$GLOBAL_HISTORY"
+echo "$LOCAL_HISTORY"
+
+if [ -f "$LOCAL_HISTORY" ]; then
+    echo "use local"
+    # export AIDER_CHAT_HISTORY="$LOCAL_HISTORY"
+else
+    echo "use global"
+    # export AIDER_CHAT_HISTORY="$GLOBAL_HISTORY"
+fi
+
+# # start w/ any passed arguments
+# aider "$@"
