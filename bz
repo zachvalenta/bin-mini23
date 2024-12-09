@@ -13,16 +13,20 @@ if [ -z "$OPENAI_API_KEY" ]; then
 fi
 
 ###
-# USE LOCAL CHAT HISTORY FILE IF PRESENT, OTHERWISE USE GLOBAL
+# USE LOCAL CHAT/INPUT HISTORY FILES IF PRESENT, OTHERWISE USE GLOBAL
 ###
-LOCAL_HISTORY="$PWD/.aider.chat.history.md"
-GLOBAL_HISTORY="$HOME/Documents/denv/dotfiles/ai/aider-global-history.md"
-if [ -f "$LOCAL_HISTORY" ]; then
-    echo "use aider local history file"
-    export AIDER_CHAT_HISTORY_FILE="$LOCAL_HISTORY"
+LOCAL_HISTORY_CHAT="$PWD/.aider.chat.history.md"
+LOCAL_HISTORY_INPUT="$PWD/.aider.input.history.md"
+GLOBAL_HISTORY_CHAT="$HOME/Documents/denv/dotfiles/ai/aider-global-history.md"
+GLOBAL_HISTORY_INPUT="$HOME/Documents/denv/dotfiles/ai/aider-global-history.md"
+if [ -f "$LOCAL_HISTORY_CHAT" ]; then
+    echo "use aider local history files"
+    export AIDER_CHAT_HISTORY_FILE="$LOCAL_HISTORY_CHAT"
+    export AIDER_INPUT_HISTORY_FILE="$LOCAL_HISTORY_INPUT"
 else
-    echo "use aider global history file"
-    export AIDER_CHAT_HISTORY_FILE="$GLOBAL_HISTORY"
+    echo "use aider global history files"
+    export AIDER_CHAT_HISTORY_FILE="$GLOBAL_HISTORY_CHAT"
+    export AIDER_INPUT_HISTORY_FILE="$GLOBAL_HISTORY_INPUT"
 fi
 
 ###
