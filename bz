@@ -5,31 +5,42 @@
 ###
 OPENAI_KEY_PATH="$HOME/Documents/denv/bin/aider.env"
 if [ -f $OPENAI_KEY_PATH ]; then
+    gum log --structured --time rfc822 --level info "🔑 OPENAI_API_KEY key set"
     source $OPENAI_KEY_PATH
 fi
 if [ -z "$OPENAI_API_KEY" ]; then
-    echo "OPENAI_API_KEY not set. Set in aider.env."
+    gum log --structured --time rfc822 --level info "🔑 OPENAI_API_KEY not set, set in aider.env"
     exit 1
 fi
 
 ###
-# USE LOCAL CHAT/INPUT HISTORY FILES IF PRESENT, OTHERWISE USE GLOBAL
+# USE LOCAL CHAT/INPUT HISTORY FILES IF PRESENT, OTHERWISE CREATE LOCAL | USE GLOBAL
 ###
 LOCAL_HISTORY_CHAT="$PWD/.aider.chat.history.md"
 LOCAL_HISTORY_INPUT="$PWD/.aider.input.history.md"
 GLOBAL_HISTORY_CHAT="$HOME/Documents/denv/dotfiles/ai/aider-global-history.md"
 GLOBAL_HISTORY_INPUT="$HOME/Documents/denv/dotfiles/ai/aider-global-history.md"
 if [ -f "$LOCAL_HISTORY_CHAT" ]; then
-    echo "use aider local history files"
     export AIDER_CHAT_HISTORY_FILE="$LOCAL_HISTORY_CHAT"
     export AIDER_INPUT_HISTORY_FILE="$LOCAL_HISTORY_INPUT"
+    gum log --structured --time rfc822 --level info "🗃️ use existing local history files: $AIDER_CHAT_HISTORY_FILE $AIDER_INPUT_HISTORY_FILE"
 else
-    echo "use aider global history files"
-    export AIDER_CHAT_HISTORY_FILE="$GLOBAL_HISTORY_CHAT"
-    export AIDER_INPUT_HISTORY_FILE="$GLOBAL_HISTORY_INPUT"
+    choices=("use global" "create local")
+    choice=$(printf "%s\n" "${choices[@]}" | gum filter)
+    if [ "$choice" == "create local" ]; then
+        touch "$LOCAL_HISTORY_CHAT"
+        touch "$LOCAL_HISTORY_INPUT"
+        export AIDER_CHAT_HISTORY_FILE="$LOCAL_HISTORY_CHAT"
+        export AIDER_INPUT_HISTORY_FILE="$LOCAL_HISTORY_INPUT"
+        gum log --structured --time rfc822 --level info "🗃️ create/use local history files: $AIDER_CHAT_HISTORY_FILE $AIDER_INPUT_HISTORY_FILE"
+    elif [ "$choice" == "use global" ]; then
+        export AIDER_CHAT_HISTORY_FILE="$GLOBAL_HISTORY_CHAT"
+        export AIDER_INPUT_HISTORY_FILE="$GLOBAL_HISTORY_INPUT"
+        gum log --structured --time rfc822 --level info "🗃️ use global history files: $AIDER_CHAT_HISTORY_FILE $AIDER_INPUT_HISTORY_FILE"
+    fi
 fi
 
 ###
 # RUN AIDER
 ###
-aider "$@"
+# aider "$@"
