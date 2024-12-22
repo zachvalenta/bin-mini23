@@ -18,8 +18,8 @@ fi
 ###
 LOCAL_HISTORY_CHAT="$PWD/.aider.chat.history.md"
 LOCAL_HISTORY_INPUT="$PWD/.aider.input.history.md"
-GLOBAL_HISTORY_CHAT="$HOME/Documents/denv/dotfiles/ai/aider-global-history.md"
-GLOBAL_HISTORY_INPUT="$HOME/Documents/denv/dotfiles/ai/aider-global-history.md"
+GLOBAL_HISTORY_CHAT="$HOME/Documents/denv/dotfiles/ai/aider-chat-history.md"
+GLOBAL_HISTORY_INPUT="$HOME/Documents/denv/dotfiles/ai/aider-input-history.md"
 if [ -f "$LOCAL_HISTORY_CHAT" ]; then
     export AIDER_CHAT_HISTORY_FILE="$LOCAL_HISTORY_CHAT"
     export AIDER_INPUT_HISTORY_FILE="$LOCAL_HISTORY_INPUT"
@@ -43,4 +43,4 @@ fi
 ###
 # RUN AIDER
 ###
-# aider "$@"
+aider "$@"
