@@ -1,0 +1,5 @@
+#!/bin/bash
+
+topics=("project" "stat" "money")
+topic=$(printf "%s\n" "${topics[@]}" | gum filter)
+gh search repos --owner=zachvalenta "topic:$topic"
