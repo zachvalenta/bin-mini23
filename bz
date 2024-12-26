@@ -43,4 +43,4 @@ fi
 ###
 # RUN AIDER
 ###
-aider "$@"
+aider "$@" --vim
