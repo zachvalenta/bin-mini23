@@ -37,8 +37,9 @@ END {
   printf "Total,%s,%s\n", format_with_leading_zero(total_cpu), format_with_leading_zero(total_mem)
 }' > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_proc.csv"
 
-# 💿 DISK
-df -h > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_disk.txt"
-
 # 🪟 PORTS
 havn -am > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_ports.txt"
+
+# 💿 DISK
+du -h -d 2 /Users/zach/Documents/zv > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M')_disk.txt"
+du -h -d 2 /Applications >> $OUTPUT_DIR/"$(date +'%y%m%d_%H%M')_disk.txt"
