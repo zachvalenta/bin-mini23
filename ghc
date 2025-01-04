@@ -1,0 +1,51 @@
+#!/bin/bash
+
+YEAR_START=$(date +%Y-01-01T00:00:00Z)
+TODAY=$(date +%Y-%m-%dT23:59:59Z)
+USERNAME="zachvalenta"
+
+gh api graphql -f query="
+{
+  user(login: \"$USERNAME\") {
+    contributionsCollection(from: \"$YEAR_START\", to: \"$TODAY\") {
+      contributionCalendar {
+        weeks {
+          contributionDays {
+            date
+            contributionCount
+          }
+        }
+      }
+    }
+  }
+}" | jq -r '.data.user.contributionsCollection.contributionCalendar.weeks[].contributionDays[] | "\(.date): \(.contributionCount)"' | tee /dev/tty |
+awk '
+    BEGIN { FS=":" }
+    { 
+        arr[NR] = $2
+        sum += $2 
+    }
+    END {
+        n = length(arr)
+        
+        # bubble sort (simple enough for small datasets)
+        for (i = 1; i <= n; i++)
+            for (j = 1; j <= n-i; j++)
+                if (arr[j] > arr[j+1]) {
+                    temp = arr[j]
+                    arr[j] = arr[j+1]
+                    arr[j+1] = temp
+                }
+        
+        # stats
+        if (n % 2) median = arr[int(n/2) + 1]
+        else median = (arr[n/2] + arr[n/2 + 1]) / 2
+        
+        print "\nSTATS"
+        print "-----"
+        printf "mean: %.1f\n", sum/n
+        printf "median: %d\n", median
+        printf "minimum: %d\n", arr[1]
+        printf "maximum: %d\n", arr[n]
+    }
+'
