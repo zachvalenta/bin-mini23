@@ -3,7 +3,7 @@
 OUTPUT_DIR="$HOME/Documents/denv/logs/sys-info"
 
 # 🤖 MEM/CPU
-ps aux | grep -E "Google Chrome|Brave Browser|Visual Studio Code|Ghostty|iTerm|/System/Library/CoreServices/|/System/Library/PrivateFrameworks/CoreSpeech|/System/Library/PrivateFrameworks/CacheDelete|/System/Applications/Stocks.app|/System/Applications/News.app|/System/Applications/Weather.app|/System/Applications/TextEdit.app|/Applications/Google Drive.app" | \
+ps aux | grep -E "Google Chrome|Brave Browser|Visual Studio Code|Ghostty|iTerm|Raycast|/System/Library/CoreServices/|/System/Library/PrivateFrameworks/CoreSpeech|/System/Library/PrivateFrameworks/CacheDelete|/System/Applications/Stocks.app|/System/Applications/News.app|/System/Applications/Weather.app|/System/Applications/TextEdit.app|/Applications/Google Drive.app" | \
 awk '
 BEGIN { print "name,cpu,mem" }
 /Google Chrome/ {chrome_cpu+=$3; chrome_mem+=$4}
@@ -11,6 +11,7 @@ BEGIN { print "name,cpu,mem" }
 /Visual Studio Code/ {vscode_cpu+=$3; vscode_mem+=$4}
 /Ghostty/ {ghostty_cpu+=$3; ghostty_mem+=$4}
 /iTerm/ {iterm_cpu+=$3; iterm_mem+=$4}
+/Raycast/ {raycast_cpu+=$3; raycast_mem+=$4}
 /\/System\/Library\/CoreServices/ {core_services_cpu+=$3; core_services_mem+=$4}
 /\/System\/Library\/PrivateFrameworks\/CoreSpeech|\/System\/Library\/PrivateFrameworks\/CacheDelete/ {private_services_cpu+=$3; private_services_mem+=$4}
 /\/System\/Applications\/Stocks.app|\/System\/Applications\/News.app|\/System\/Applications\/Weather.app|\/System\/Applications\/TextEdit.app/ {builtin_apps_cpu+=$3; builtin_apps_mem+=$4}
@@ -29,13 +30,14 @@ END {
   printf "Visual Studio Code,%s,%s\n", format_with_leading_zero(vscode_cpu), format_with_leading_zero(vscode_mem)
   printf "Ghostty,%s,%s\n", format_with_leading_zero(ghostty_cpu), format_with_leading_zero(ghostty_mem)
   printf "iTerm,%s,%s\n", format_with_leading_zero(iterm_cpu), format_with_leading_zero(iterm_mem)
+  printf "Raycast,%s,%s\n", format_with_leading_zero(raycast_cpu), format_with_leading_zero(raycast_mem)
   printf "macOS core services,%s,%s\n", format_with_leading_zero(core_services_cpu), format_with_leading_zero(core_services_mem)
   printf "macOS private services,%s,%s\n", format_with_leading_zero(private_services_cpu), format_with_leading_zero(private_services_mem)
   printf "macOS built-in apps,%s,%s\n", format_with_leading_zero(builtin_apps_cpu), format_with_leading_zero(builtin_apps_mem)
   printf "Google Drive,%s,%s\n", format_with_leading_zero(gdrive_cpu), format_with_leading_zero(gdrive_mem)
   # Calculate and print totals with leading zeros
-  total_cpu = brave_cpu + chrome_cpu + vscode_cpu + iterm_cpu + core_services_cpu + private_services_cpu + builtin_apps_cpu + gdrive_cpu
-  total_mem = brave_mem + chrome_mem + vscode_mem + iterm_mem + core_services_mem + private_services_mem + builtin_apps_mem + gdrive_mem
+  total_cpu = brave_cpu + chrome_cpu + vscode_cpu + ghostty_cpu + iterm_cpu + raycast_cpu + core_services_cpu + private_services_cpu + builtin_apps_cpu + gdrive_cpu
+  total_mem = brave_mem + chrome_mem + vscode_mem + ghostty_mem + iterm_mem + raycast_mem + core_services_mem + private_services_mem + builtin_apps_mem + gdrive_mem
   printf "Total,%s,%s\n", format_with_leading_zero(total_cpu), format_with_leading_zero(total_mem)
 }' > $OUTPUT_DIR/"$(date +'%y%m%d_%H%M%S')_proc.csv"
 
