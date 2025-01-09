@@ -1,0 +1,33 @@
+#!/bin/bash
+
+actions=("repos" "topics")
+action=$(printf "%s\n" "${actions[@]}" | gum filter)
+
+# SEARCH REPO BY NAME
+if [ "$action" = "repos" ]; then
+    query=$(gum input --width 50 --placeholder 'what repo are you looking for?')
+    search_results=$(gh search repos --owner=zachvalenta --json name,owner --jq '.[].owner.login + "/" + .[].name' "$query" | sort -u)
+    selected_repo=$(echo "$search_results" | gum filter --placeholder "select repo")
+    actions=("list all" "view" "browse" "clone")
+    selected_action=$(printf "%s\n" "${actions[@]}" | gum filter --placeholder "what do you want to do with $selected_repo?")
+    case "$selected_action" in
+        "list all")
+            gh search repos --owner=zachvalenta "$query"
+            ;;
+        "view")
+            gh repo view "$selected_repo"
+            ;;
+        "browse")
+            gh browse --repo "$selected_repo"
+            ;;
+        "clone")
+            gh repo clone "$selected_repo"
+            ;;
+    esac
+
+# VIEW REPOS BY TOPIC
+else
+    topics=("project" "publish" "ai" "stat" "money")
+    topic=$(printf "%s\n" "${topics[@]}" | gum filter)
+    gh search repos --owner=zachvalenta "topic:$topic"
+fi
