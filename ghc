@@ -49,7 +49,6 @@ awk '
         printf "%-10s %10d\n", "projected", projected
         printf "%-10s %10.1f\n", "mean", mean
         printf "%-10s %10d\n", "median", median
-        printf "%-10s %10d\n", "minimum", arr[1]
         printf "%-10s %10d\n", "maximum", arr[n]
     }
 ') | gum format
