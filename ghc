@@ -19,36 +19,43 @@ query($username: String!, $from: DateTime!, $to: DateTime!) {
 }' -F username="$USERNAME" -F from="$YEAR_START" -F to="$TODAY" | 
 jq -r '.data.user.contributionsCollection.contributionCalendar.weeks[].contributionDays[] | "\(.date): \(.contributionCount)"' |
 awk '
- BEGIN { 
-        FS=":"
-        printf "# DAILY TOTALS\n" 
+BEGIN { 
+    FS=":"
+    printf "# DAILY \n" 
+}
+{ 
+    dates[NR] = $1
+    counts[NR] = $2
+    arr[NR] = $2
+    sum += $2
+}
+END {
+    n = length(arr)
+    
+    # Print last 10 days
+    start = (n > 10) ? n-9 : 1
+    for (i = start; i <= n; i++) {
+        print dates[i] ": " counts[i]
     }
-    { 
-        arr[NR] = $2
-        sum += $2
-        print $0
-    }
-    END {
-        n = length(arr)
-        mean = sum/n
-        projected = (sum/n) * 365.0  # force floating point
-        
-        for (i = 1; i <= n; i++)
-            for (j = 1; j <= n-i; j++)
-                if (arr[j] > arr[j+1]) {
-                    temp = arr[j]
-                    arr[j] = arr[j+1]
-                    arr[j+1] = temp
-                }
-        
-        if (n % 2) median = arr[int(n/2) + 1]
-        else median = (arr[n/2] + arr[n/2 + 1]) / 2
-        
-        printf "\n# STATS\n"
-        printf "%-10s %10d\n", "total", sum
-        printf "%-10s %10d\n", "projected", projected
-        printf "%-10s %10.1f\n", "mean", mean
-        printf "%-10s %10d\n", "median", median
-        printf "%-10s %10d\n", "maximum", arr[n]
-    }
-') | gum format
+    
+    mean = sum/n
+    projected = (sum/n) * 365.0
+    
+    for (i = 1; i <= n; i++)
+        for (j = 1; j <= n-i; j++)
+            if (arr[j] > arr[j+1]) {
+                temp = arr[j]
+                arr[j] = arr[j+1]
+                arr[j+1] = temp
+            }
+    
+    if (n % 2) median = arr[int(n/2) + 1]
+    else median = (arr[n/2] + arr[n/2 + 1]) / 2
+    
+    printf "\n# YEAR \n"
+    printf "%-10s %10d\n", "total", sum
+    printf "%-10s %10d\n", "projected", projected
+    printf "%-10s %10.1f\n", "mean", mean
+    printf "%-10s %10d\n", "median", median
+    printf "%-10s %10d\n", "maximum", arr[n]
+}') | gum format
