@@ -1,15 +1,28 @@
 #!/usr/bin/env bash
 
 ###
-# SET OPENAI KEY
+# CHOOSE MODEL
 ###
-OPENAI_KEY_PATH="$HOME/Documents/denv/bin/aider.env"
-if [ -f $OPENAI_KEY_PATH ]; then
-    gum log --structured --time rfc822 --level info "🔑 OPENAI_API_KEY key set"
-    source $OPENAI_KEY_PATH
+models=("Claude" "GPT")
+model=$(printf "%s\n" "${models[@]}" | gum filter)
+gum log --structured --time rfc822 --level info "🤖 selected model: $model"
+key_path="$HOME/Documents/denv/bin/aider.env"
+if [ -f $key_path ]; then
+    if [ "$model" == "GPT" ]; then
+        export $(grep -E "^export OPENAI_API_KEY=" "$key_path" | xargs)
+        [ -n "$OPENAI_API_KEY" ] && gum log --structured --time rfc822 --level info "🔑 loaded OpenAI key"
+        gum log --structured --time rfc822 --level info "key: $OPENAI_API_KEY"
+    else
+        export $(grep -E "^export ANTHROPIC_API_KEY=" "$key_path" | xargs)
+        [ -n "$ANTHROPIC_API_KEY" ] && gum log --structured --time rfc822 --level info "🔑 loaded Anthropic key"
+        gum log --structured --time rfc822 --level info "key: $ANTHROPIC_API_KEY"
+    fi
 fi
-if [ -z "$OPENAI_API_KEY" ]; then
-    gum log --structured --time rfc822 --level info "🔑 OPENAI_API_KEY not set, set in aider.env"
+if [ "$model" == "GPT" ] && [ -z "$OPENAI_API_KEY" ]; then
+    gum log --structured --time rfc822 --level error "🔑 OPENAI_API_KEY not set in aider.env"
+    exit 1
+elif [ "$model" == "Claude" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+    gum log --structured --time rfc822 --level error "🔑 ANTHROPIC_API_KEY not set in aider.env"
     exit 1
 fi
 
@@ -18,8 +31,8 @@ fi
 ###
 LOCAL_HISTORY_CHAT="$PWD/.aider.chat.history.md"
 LOCAL_HISTORY_INPUT="$PWD/.aider.input.history.md"
-GLOBAL_HISTORY_CHAT="$HOME/Documents/denv/dotfiles/ai/aider-chat-history.md"
-GLOBAL_HISTORY_INPUT="$HOME/Documents/denv/dotfiles/ai/aider-input-history.md"
+GLOBAL_HISTORY_CHAT="$HOME/Documents/denv/dotfiles/ai/aider/history/chat.md"
+GLOBAL_HISTORY_INPUT="$HOME/Documents/denv/dotfiles/ai/aider/history/input.md"
 if [ -f "$LOCAL_HISTORY_CHAT" ]; then
     export AIDER_CHAT_HISTORY_FILE="$LOCAL_HISTORY_CHAT"
     export AIDER_INPUT_HISTORY_FILE="$LOCAL_HISTORY_INPUT"
@@ -43,4 +56,4 @@ fi
 ###
 # RUN AIDER
 ###
-aider "$@" --vim
+aider "$@"
