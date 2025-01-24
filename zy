@@ -1,4 +1,5 @@
 #!/bin/bash
+# TODO: fix bug where search for forked repo just outputs all files in CWD
 
 actions=("repos" "topics")
 action=$(printf "%s\n" "${actions[@]}" | gum filter)
