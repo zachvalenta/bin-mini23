@@ -21,7 +21,7 @@ jq -r '.data.user.contributionsCollection.contributionCalendar.weeks[].contribut
 awk '
 BEGIN { 
     FS=":"
-    printf "# DAILY \n" 
+    printf "# ROLLING \n" 
 }
 { 
     dates[NR] = $1
@@ -31,13 +31,29 @@ BEGIN {
 }
 END {
     n = length(arr)
+    recent_sum = 0
     
-    # Print last 10 days
+    # Print and sum last 10 days
     start = (n > 10) ? n-9 : 1
     for (i = start; i <= n; i++) {
         print dates[i] ": " counts[i]
+        recent_sum += counts[i]
     }
     
+    recent_mean = recent_sum/10
+    
+    # Recent median
+    for (i = 1; i <= 10; i++) recent_arr[i] = counts[n-10+i]
+    for (i = 1; i <= 10; i++)
+        for (j = 1; j <= 10-i; j++)
+            if (recent_arr[j] > recent_arr[j+1]) {
+                temp = recent_arr[j]
+                recent_arr[j] = recent_arr[j+1]
+                recent_arr[j+1] = temp
+            }
+    recent_median = (recent_arr[5] + recent_arr[6]) / 2
+    
+    # All-time stats
     mean = sum/n
     projected = (sum/n) * 365.0
     
@@ -51,11 +67,16 @@ END {
     
     if (n % 2) median = arr[int(n/2) + 1]
     else median = (arr[n/2] + arr[n/2 + 1]) / 2
-    
-    printf "\n# YEAR \n"
-    printf "%-10s %10d\n", "total", sum
-    printf "%-10s %10d\n", "projected", projected
-    printf "%-10s %10.1f\n", "mean", mean
-    printf "%-10s %10d\n", "median", median
-    printf "%-10s %10d\n", "maximum", arr[n]
+
+    printf "\n# STATS\n\n"
+    printf "\n## rolling\n\n"
+    printf "%-25s %5d\n", "mean", recent_mean
+    printf "%-25s %5d\n", "median", recent_median
+    printf "\n## yearly\n\n"
+    printf "%-25s %5d\n", "total", sum
+    printf "%-25s %5d\n", "projected", projected
+    printf "%-25s %5d\n", "max", arr[n]
+    printf "%-25s %5d\n", "mean", mean
+    printf "%-25s %5d\n", "median", median
+
 }') | gum format
