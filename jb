@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+
+case "$PWD" in
+    *Documents/zv/notes/sw*)
+        base_hue=175
+        update_sat=85
+        sprint_sat=85
+        main_sat=85
+        ;;
+    *Documents/zv/notes/domains*)
+        base_hue=45
+        update_sat=100
+        sprint_sat=35  # Directly specify the scaled down values
+        main_sat=35
+        ;;
+    *)
+        echo "Not in a known notes repository"
+        exit 1
+        ;;
+esac
+
+# Generate colors using pre-calculated values
+update_bg="hsl($base_hue, ${update_sat}%, 55%)"
+sprint_bg="hsl($base_hue, ${sprint_sat}%, 35%)"
+main_bg="hsl($base_hue, ${main_sat}%, 20%)"
+
+# Constants
+added_bg="lawngreen"
+mvrm_bg="orangered"
+
+# Helper for getting foreground colors
+get_fg() {
+    pastel textcolor "$1"
+}
+
+# Working tree
+updated="$(git diff --stat-width=75 | sort -k 3 | sed \$d)"
+if [ -n "$updated" ]; then
+    echo -en "\n"
+    pastel paint "$(get_fg "$update_bg")" --on "$update_bg" " working tree "
+    echo -en "\n${updated}\n"
+    echo "total files touched: $(git s | wc -l)"
+    echo "time since last commit:    $(git rev-parse HEAD | git show -s --format=%cr)"
+fi
+
+# Added files
+added="$(git ls-files --others --exclude-standard)"
+if [ -n "$added" ]; then
+    pastel paint "$(get_fg "$added_bg")" --on "$added_bg" " added files "
+    echo -en "\n${added}\n\n"
+fi
+
+# Removed/moved files
+mvrm="$(git ls-files --deleted)"
+if [ -n "$mvrm" ]; then
+    pastel paint "$(get_fg "$mvrm_bg")" --on "$mvrm_bg" " (re)moved files "
+    echo -en "\n${mvrm}\n\n"
+fi
+
+# Sprint
+echo -en "\n"
+pastel paint "$(get_fg "$sprint_bg")" --on "$sprint_bg" " sprint so far..."
+echo -en "\n"
+git log main..sprint --pretty=format:'%C(white black bold) * %C(auto) %s'
+echo -en "\n"
+
+# Main
+pastel paint "$(get_fg "$main_bg")" --on "$main_bg" " main "
+echo -en "\n"
+git log main -n 3 --pretty=format:'%C(white black bold) %cd %C(auto) %d %s' --date=short
+echo -en "\n"
