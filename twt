@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-task export | jq -r '
-  group_by(.project)[] |
-  (.[0].project // "No Project") + "\n" +
-  (map("  - " + .description) | join("\n"))
-'
