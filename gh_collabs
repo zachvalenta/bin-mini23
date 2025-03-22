@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Output file
+output_file="repo_collaborators.csv"
+
+# Create CSV header
+echo "repo_name,has_collabs,collabs" > $output_file
+
+# Get all repos
+gh repo list --json nameWithOwner --limit 1000 | jq -r '.[].nameWithOwner' | while read repo; do
+  echo "Checking $repo..."
+  
+  # Get collaborators excluding yourself
+  # Replace YOUR_USERNAME with your actual GitHub username
+  collab_json=$(gh api "repos/$repo/collaborators" --jq '[.[] | select(.login != "YOUR_USERNAME") | .login]' 2>/dev/null || echo "[]")
+  
+  # Determine if repo has collaborators
+  if [ "$collab_json" != "[]" ]; then
+    has_collabs="true"
+  else
+    has_collabs="false"
+    collab_json="[]"
+  fi
+  
+  # Escape quotes in JSON for CSV compatibility
+  collab_json_escaped=$(echo "$collab_json" | sed 's/"/""/g')
+  
+  # Write to CSV
+  echo "\"$repo\",\"$has_collabs\",\"$collab_json_escaped\"" >> $output_file
+done
+
+echo "Results written to $output_file"
