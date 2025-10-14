@@ -1,0 +1,76 @@
+#!/usr/bin/env python
+
+"""
+Extracts a class hierarchy tree from a Python file and prints it,
+or writes to a file if --output=FILE is passed.
+
+Usage:
+    ext $FILE [--output=out.txt]
+"""
+
+import sys
+import ast
+from pathlib import Path
+
+def extract_class_tree(py_text):
+    try:
+        tree = ast.parse(py_text)
+    except SyntaxError as e:
+        return f"Syntax error in Python file: {e}"
+
+    classes = []
+    
+    def visit_node(node, level=0):
+        if isinstance(node, ast.ClassDef):
+            classes.append((level, node.lineno, node.name))
+            # Visit children at the next level
+            for child in node.body:
+                visit_node(child, level + 1)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            # Don't increase level for functions, just recurse
+            for child in node.body:
+                visit_node(child, level)
+        else:
+            # For other node types, check their children
+            for child in ast.iter_child_nodes(node):
+                visit_node(child, level)
+    
+    visit_node(tree)
+    
+    result = []
+    for level, _, name in classes:
+        indent = '\t' * level
+        result.append(f"{indent}{name}")
+    
+    return '\n'.join(result)
+
+def main(argv):
+    if not argv:
+        print("Usage: ext file.py [--output=out.txt]")
+        sys.exit(1)
+
+    output_path = None
+    paths = []
+
+    for arg in argv:
+        if arg.startswith("--output="):
+            output_path = arg.split("=", 1)[1]
+        else:
+            paths.append(arg)
+
+    for path_str in paths:
+        path = Path(path_str)
+        if not path.exists():
+            print(f"File not found: {path}")
+            continue
+
+        py_text = path.read_text()
+        output = extract_class_tree(py_text)
+
+        if output_path:
+            Path(output_path).write_text(output)
+        else:
+            print(output)
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
