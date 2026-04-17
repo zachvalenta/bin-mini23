@@ -39,8 +39,8 @@ if [ -n "$updated" ]; then
     echo -en "\n"
     pastel paint "$(get_fg "$update_bg")" --on "$update_bg" " working tree "
     echo -en "\n${updated}\n"
-    echo "total files touched: $(git s | wc -l)"
-    echo "time since last commit:    $(git rev-parse HEAD | git show -s --format=%cr)"
+    # echo "total files touched: $(git s | wc -l)"
+    # echo "time since last commit:    $(git rev-parse HEAD | git show -s --format=%cr)"
 fi
 
 # Added files
@@ -65,7 +65,7 @@ git log main..sprint --pretty=format:'%C(white black bold) * %C(auto) %s'
 echo -en "\n"
 
 # Main
-pastel paint "$(get_fg "$main_bg")" --on "$main_bg" " main "
-echo -en "\n"
-git log main -n 3 --pretty=format:'%C(white black bold) %cd %C(auto) %d %s' --date=short
-echo -en "\n"
+# pastel paint "$(get_fg "$main_bg")" --on "$main_bg" " main "
+# echo -en "\n"
+# git log main -n 3 --pretty=format:'%C(white black bold) %cd %C(auto) %d %s' --date=short
+# echo -en "\n"
