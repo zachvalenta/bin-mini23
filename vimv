@@ -40,11 +40,7 @@ HISTORY_FILE = '~/.vimv_history'
 
 def main():
 
-    if 'EDITOR' in os.environ:
-        editor = os.environ['EDITOR']
-    else:
-        editor = 'vi'
-
+    editor = 'vi'
     parser = OptionParser(usage='%prog [options] [directory ...]', version=__version__)
 
     #[options]
