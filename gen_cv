@@ -4,22 +4,200 @@
 create CV from Markdown
 """
 
-import click
-import markdown2, weasyprint
 from pathlib import Path
 
+import click
+import markdown2
+import weasyprint
+from bs4 import BeautifulSoup
+
 css = """
-@page { margin: 1.0cm 1.35cm; }
-body { font-family: Inter, Georgia, serif; font-size: 9.1pt; line-height: 1.3; color: #222; max-width: none; }
-h1 { font-size: 11.5pt; margin: 0.75em 0 0.25em; }
-h2 { font-size: 9.8pt; border-bottom: 1px solid #999; margin: 0.65em 0 0.22em; }
-em { color: #555; font-style: italic; }
-ul { margin: 0.12em 0 0.3em 1.15em; padding: 0; }
+@page { margin: 0.9cm 1.15cm; }
+* { box-sizing: border-box; }
+body {
+  font-family: Karla, Inter, Arial, sans-serif;
+  font-size: 8.8pt;
+  line-height: 1.26;
+  color: #111;
+}
+a { color: #111; text-decoration: underline; text-decoration-thickness: 0.5pt; }
+em { color: #111; font-style: normal; font-weight: 700; }
+p { margin: 0.08em 0 0.22em; }
+ul { margin: 0.12em 0 0.42em 1.05em; padding: 0; }
 li { margin-bottom: 0.06em; }
-hr { border: none; border-top: 1px solid #ddd; margin: 0.6em 0; }
-a { color: #1a5276; text-decoration: underline; }
-p { margin: 0.1em 0 0.24em; }
+.resume { width: 100%; }
+.resume-header { text-align: center; margin: 0 0 0.42cm; }
+.name {
+  font-size: 28pt;
+  line-height: 0.95;
+  margin: 0 0 0.2cm;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.deck {
+  max-width: 16.5cm;
+  margin: 0 auto;
+  color: #777;
+  font-size: 11pt;
+  line-height: 1.22;
+}
+.header-rule { border: 0; border-top: 1px solid #cfcfcf; margin: 0.36cm 0 0; }
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2.55fr) minmax(4.1cm, 0.95fr);
+  column-gap: 0.72cm;
+  align-items: start;
+}
+.section-label {
+  display: inline-block;
+  margin: 0 0 0.28cm;
+  padding: 0.08cm 0.16cm;
+  border-radius: 3px;
+  background: #ffc9c9;
+  color: #000;
+  font-size: 9.4pt;
+  line-height: 1;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.job { break-inside: avoid; margin: 0 0 0.3cm; padding-bottom: 0.2cm; border-bottom: 1px solid #d0d0d0; }
+.job:last-child { border-bottom: 0; }
+.job h2, .side-section h2 {
+  border: 0;
+  margin: 0 0 0.08cm;
+  padding: 0;
+  font-size: 11.2pt;
+  line-height: 1.12;
+  font-weight: 800;
+}
+.job .date { color: #777; font-size: 8.7pt; margin-bottom: 0.1cm; }
+.job ul { margin-left: 0.95em; }
+.sidebar { padding-top: 0.08cm; }
+.side-section { break-inside: avoid; margin-bottom: 0.45cm; }
+.contact ul, .skills ul { list-style: disc; margin-left: 1.05em; }
+.contact li { margin-bottom: 0.08cm; }
+.skills li { margin-bottom: 0.06em; color: #555; }
+.oss ul { margin-left: 0.95em; }
 """
+
+
+def take_section(soup, heading_text):
+    heading = soup.find(lambda tag: tag.name == 'h2' and tag.get_text(strip=True).lower() == heading_text)
+    if not heading:
+        return []
+    nodes = []
+    node = heading.next_sibling
+    heading.extract()
+    while node and not (getattr(node, 'name', None) in {'h1', 'h2'}):
+        next_node = node.next_sibling
+        if getattr(node, 'name', None):
+            nodes.append(node.extract())
+        node = next_node
+    return nodes
+
+
+def split_experience(soup):
+    marker = soup.find(lambda tag: tag.name == 'h1' and tag.get_text(strip=True).lower() == 'experience')
+    if marker:
+        marker.extract()
+    sections = []
+    for h2 in list(soup.find_all('h2')):
+        title = h2.get_text(strip=True)
+        node = h2.next_sibling
+        nodes = [h2.extract()]
+        while node and not (getattr(node, 'name', None) in {'h1', 'h2'}):
+            next_node = node.next_sibling
+            if getattr(node, 'name', None):
+                if node.name == 'p':
+                    text = node.get_text(strip=True).replace('🗓️', '').strip()
+                    node.string = text
+                    node['class'] = node.get('class', []) + ['date']
+                nodes.append(node.extract())
+            node = next_node
+        sections.append((title, nodes))
+    return sections
+
+
+def extract_contact_name(contact_nodes):
+    name = 'Zach Valenta'
+    for node in contact_nodes:
+        for li in node.find_all('li') if hasattr(node, 'find_all') else []:
+            label = li.find('em')
+            if label and label.get_text(strip=True).lower() == 'name':
+                text = li.get_text(' ', strip=True)
+                name = text.split(':', 1)[-1].strip()
+                li.extract()
+                return name
+    return name
+
+
+def tag_fragment(soup, name, class_name=None, text=None):
+    tag = soup.new_tag(name)
+    if class_name:
+        tag['class'] = class_name
+    if text is not None:
+        tag.string = text
+    return tag
+
+
+def build_resume_html(markdown_html):
+    src = BeautifulSoup(markdown_html, 'html.parser')
+    contact_nodes = take_section(src, 'contact')
+    summary_nodes = take_section(src, 'summary')
+    for h1 in list(src.find_all('h1')):
+        if h1.get_text(strip=True).lower() == 'overview':
+            h1.extract()
+    name = extract_contact_name(contact_nodes)
+    experience = split_experience(src)
+    oss_sections = [nodes for title, nodes in experience if title.lower() == 'oss']
+    jobs = [(title, nodes) for title, nodes in experience if title.lower() != 'oss']
+
+    out = BeautifulSoup('', 'html.parser')
+    resume = tag_fragment(out, 'div', 'resume')
+    out.append(resume)
+
+    header = tag_fragment(out, 'header', 'resume-header')
+    header.append(tag_fragment(out, 'h1', 'name', name))
+    deck = tag_fragment(out, 'div', 'deck')
+    if summary_nodes and summary_nodes[0].name == 'p':
+        deck.append(summary_nodes[0])
+    header.append(deck)
+    header.append(tag_fragment(out, 'hr', 'header-rule'))
+    resume.append(header)
+
+    layout = tag_fragment(out, 'div', 'layout')
+    main = tag_fragment(out, 'main', 'main')
+    main.append(tag_fragment(out, 'div', 'section-label', 'Work Experience'))
+    for _title, nodes in jobs:
+        job = tag_fragment(out, 'section', 'job')
+        for node in nodes:
+            job.append(node)
+        main.append(job)
+    layout.append(main)
+
+    sidebar = tag_fragment(out, 'aside', 'sidebar')
+    if contact_nodes:
+        section = tag_fragment(out, 'section', 'side-section contact')
+        section.append(tag_fragment(out, 'div', 'section-label', 'Contact'))
+        for node in contact_nodes:
+            section.append(node)
+        sidebar.append(section)
+    if summary_nodes:
+        section = tag_fragment(out, 'section', 'side-section skills')
+        section.append(tag_fragment(out, 'div', 'section-label', 'Skills'))
+        for node in summary_nodes:
+            section.append(node)
+        sidebar.append(section)
+    for nodes in oss_sections:
+        section = tag_fragment(out, 'section', 'side-section oss')
+        section.append(tag_fragment(out, 'div', 'section-label', 'OSS'))
+        for node in nodes[1:]:
+            section.append(node)
+        sidebar.append(section)
+    layout.append(sidebar)
+    resume.append(layout)
+    return str(out)
+
 
 @click.command()
 @click.argument('input_file', type=click.Path(exists=True, dir_okay=False))
@@ -28,10 +206,11 @@ def main(input_file, output):
     """Convert a Markdown file to a styled PDF CV."""
     src = Path(input_file)
     dest = Path(output) if output else src.with_suffix('.pdf')
-    html = markdown2.markdown(src.read_text(), extras=['tables', 'fenced-code-blocks'])
+    raw_html = markdown2.markdown(src.read_text(), extras=['tables', 'fenced-code-blocks'])
+    html = build_resume_html(raw_html)
     weasyprint.HTML(string=f'<html><head><style>{css}</style></head><body>{html}</body></html>').write_pdf(dest)
     click.echo(f'{src} → {dest}')
 
+
 if __name__ == '__main__':
     main()
-
