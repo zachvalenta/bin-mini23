@@ -10,10 +10,9 @@ from pathlib import Path
 
 css = """
 @page { margin: 1.5cm 2cm; }
-body { font-family: Georgia, serif; font-size: 11pt; line-height: 1.5; color: #222; max-width: 800px; }
-h1 { font-size: 20pt; margin-bottom: 0.2em; }
-h2 { font-size: 13pt; border-bottom: 1px solid #999; margin-top: 1.4em; margin-bottom: 0.4em; }
-h3 { font-size: 11pt; margin-bottom: 0.1em; margin-top: 1.2em; }
+body { font-family: Georgia, serif; font-size: 10pt; line-height: 1.5; color: #222; max-width: 800px; }
+h1 { font-size: 13pt; margin-bottom: 0.1em; margin-top: 2.0em; }
+h2 { font-size: 11pt; border-bottom: 1px solid #999; margin-top: 1.4em; margin-bottom: 0.4em; }
 em { color: #555; font-style: italic; }
 ul { margin: 0.3em 0 0.5em 1.5em; padding: 0; }
 li { margin-bottom: 0.2em; }
