@@ -9,16 +9,16 @@ import markdown2, weasyprint
 from pathlib import Path
 
 css = """
-@page { margin: 1.5cm 2cm; }
-body { font-family: Georgia, serif; font-size: 10pt; line-height: 1.5; color: #222; max-width: 800px; }
-h1 { font-size: 13pt; margin-bottom: 0.1em; margin-top: 2.0em; }
-h2 { font-size: 11pt; border-bottom: 1px solid #999; margin-top: 1.4em; margin-bottom: 0.4em; }
+@page { margin: 1.0cm 1.35cm; }
+body { font-family: Inter, Georgia, serif; font-size: 9.1pt; line-height: 1.3; color: #222; max-width: none; }
+h1 { font-size: 11.5pt; margin: 0.75em 0 0.25em; }
+h2 { font-size: 9.8pt; border-bottom: 1px solid #999; margin: 0.65em 0 0.22em; }
 em { color: #555; font-style: italic; }
-ul { margin: 0.3em 0 0.5em 1.5em; padding: 0; }
-li { margin-bottom: 0.2em; }
-hr { border: none; border-top: 1px solid #ddd; margin: 1em 0; }
+ul { margin: 0.12em 0 0.3em 1.15em; padding: 0; }
+li { margin-bottom: 0.06em; }
+hr { border: none; border-top: 1px solid #ddd; margin: 0.6em 0; }
 a { color: #1a5276; text-decoration: underline; }
-p { margin: 0.3em 0 0.6em 0; }
+p { margin: 0.1em 0 0.24em; }
 """
 
 @click.command()
