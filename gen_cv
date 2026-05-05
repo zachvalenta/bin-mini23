@@ -74,7 +74,7 @@ li { margin-bottom: 0.06em; }
 .job ul { margin-left: 0.95em; }
 .sidebar { padding-top: 0.08cm; }
 .side-section { break-inside: avoid; margin-bottom: 0.45cm; }
-.contact ul, .skills ul { list-style: disc; margin-left: 1.05em; }
+.contact ul, .profiles ul, .skills ul { list-style: disc; margin-left: 1.05em; }
 .contact li { margin-bottom: 0.08cm; }
 .skills li { margin-bottom: 0.06em; color: #555; }
 .oss ul { margin-left: 0.95em; }
@@ -143,6 +143,7 @@ def tag_fragment(soup, name, class_name=None, text=None):
 def build_resume_html(markdown_html):
     src = BeautifulSoup(markdown_html, 'html.parser')
     contact_nodes = take_section(src, 'contact')
+    profile_nodes = take_section(src, 'profiles')
     summary_nodes = take_section(src, 'summary')
     for h1 in list(src.find_all('h1')):
         if h1.get_text(strip=True).lower() == 'overview':
@@ -180,6 +181,12 @@ def build_resume_html(markdown_html):
         section = tag_fragment(out, 'section', 'side-section contact')
         section.append(tag_fragment(out, 'div', 'section-label', 'Contact'))
         for node in contact_nodes:
+            section.append(node)
+        sidebar.append(section)
+    if profile_nodes:
+        section = tag_fragment(out, 'section', 'side-section profiles')
+        section.append(tag_fragment(out, 'div', 'section-label', 'Profiles'))
+        for node in profile_nodes:
             section.append(node)
         sidebar.append(section)
     if summary_nodes:
