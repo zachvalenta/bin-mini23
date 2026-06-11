@@ -13,8 +13,11 @@ open_new_tab("https://news.ycombinator.com/")
 open_new_tab("https://www.youtube.com/feed/subscriptions")
 open_new_tab("https://www.youtube.com/playlist?list=WL")
 
+# SPORTS
+open_new_tab("https://espn.com/")
+open_new_tab("https://plaintextsports.com/world-cup/2026/schedule")
+open_new_tab("https://plaintextsports.com/mlb/2026/teams/philadelphia-phillies")
+
 # ZA
 open_new_tab("https://news.kagi.com/onthisday/latest")
 open_new_tab("https://marginalrevolution.com/")
-open_new_tab("https://news.kagi.com/sports/latest")
-open_new_tab("https://plaintextsports.com/mlb/2026/teams/philadelphia-phillies")
