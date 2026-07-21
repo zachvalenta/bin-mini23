@@ -5,8 +5,6 @@ from webbrowser import open_new_tab
 # NEWS
 open_new_tab("https://mail.google.com")
 open_new_tab("https://www.semafor.com")
-open_new_tab("https://news.kagi.com/world/latest")
-open_new_tab("https://news.kagi.com/business/latest")
 
 # SW
 open_new_tab("https://news.ycombinator.com/")
@@ -15,7 +13,6 @@ open_new_tab("https://www.youtube.com/playlist?list=WL")
 
 # SPORTS
 open_new_tab("https://espn.com/")
-open_new_tab("https://plaintextsports.com/world-cup/2026/schedule")
 open_new_tab("https://plaintextsports.com/mlb/2026/teams/philadelphia-phillies")
 
 # ZA
