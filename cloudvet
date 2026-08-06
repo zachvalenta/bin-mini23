@@ -1,0 +1,201 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+usage:
+  cloudvet NAME                 create/show namespace
+  cloudvet NAME start           record UTC start timestamp
+  cloudvet NAME stop            record UTC stop timestamp
+  cloudvet NAME agent FILE      record and copy agent session file
+  cloudvet NAME audit           query CloudTrail from start to stop
+  cloudvet NAME status          show namespace state
+
+storage:
+  ${XDG_CONFIG_HOME:-$HOME/.config}/cloudvet/NAME
+
+notes:
+  - audit queries CloudTrail lookup-events across enabled AWS regions when possible
+  - CloudTrail delivery can lag; wait a few minutes before audit for better coverage
+  - AWS_PROFILE/AWS_REGION/AWS_DEFAULT_REGION are honored by awscli
+EOF
+}
+
+fail() {
+  echo "cloudvet: $*" >&2
+  exit 1
+}
+
+utc_now() {
+  date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+stamp_now() {
+  date -u +"%Y%m%dT%H%M%SZ"
+}
+
+sanitize_name() {
+  printf '%s' "$1" | tr -c 'A-Za-z0-9_.-' '_'
+}
+
+petname() {
+  # Human-readable random slug; not intended for cryptographic uniqueness.
+  local adjectives nouns a n
+  adjectives="amber brave calm copper fuzzy gentle lucky maple quiet rapid silver tiny vivid wild"
+  nouns="apple badger blackberry lantern otter racecar river sparrow tiger turtle walnut zeppelin orbit meadow"
+  a=$(printf '%s\n' $adjectives | awk 'BEGIN{srand()} {w[NR]=$0} END{print w[int(rand()*NR)+1]}')
+  n=$(printf '%s\n' $nouns | awk 'BEGIN{srand(systime()+1)} {w[NR]=$0} END{print w[int(rand()*NR)+1]}')
+  printf '%s-%s' "$a" "$n"
+}
+
+base_dir() {
+  printf '%s/cloudvet' "${XDG_CONFIG_HOME:-$HOME/.config}"
+}
+
+ns_dir() {
+  local raw safe
+  raw=$1
+  safe=$(sanitize_name "$raw")
+  printf '%s/%s' "$(base_dir)" "$safe"
+}
+
+ensure_ns() {
+  local name dir now
+  name=$1
+  dir=$(ns_dir "$name")
+  now=$(utc_now)
+  mkdir -p "$dir/agents"
+  if [[ ! -f "$dir/context.md" ]]; then
+    cat > "$dir/context.md" <<EOF
+# cloudvet: $name
+
+created: $now
+
+## timeline
+
+EOF
+  fi
+  printf '%s' "$dir"
+}
+
+append_timeline() {
+  local dir msg
+  dir=$1
+  msg=$2
+  printf -- '- %s %s\n' "$(utc_now)" "$msg" >> "$dir/context.md"
+}
+
+cmd_regions() {
+  local fallback
+  fallback=${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}
+  if command -v aws >/dev/null 2>&1; then
+    aws ec2 describe-regions \
+      --all-regions \
+      --query 'Regions[?OptInStatus==`opt-in-not-required` || OptInStatus==`opted-in`].RegionName' \
+      --output text 2>/dev/null | tr '\t' '\n' | awk 'NF' || true
+  fi
+  # If describe-regions failed or returned nothing, caller will use fallback.
+}
+
+show_status() {
+  local dir
+  dir=$1
+  echo "namespace: $dir"
+  [[ -f "$dir/start.timestamp" ]] && echo "start: $(<"$dir/start.timestamp")" || echo "start: <unset>"
+  [[ -f "$dir/stop.timestamp" ]] && echo "stop: $(<"$dir/stop.timestamp")" || echo "stop: <unset>"
+  [[ -f "$dir/agent.path" ]] && echo "agent: $(<"$dir/agent.path")" || echo "agent: <unset>"
+}
+
+[[ $# -ge 1 ]] || { usage; exit 2; }
+[[ "$1" != "-h" && "$1" != "--help" ]] || { usage; exit 0; }
+
+name=$1
+cmd=${2:-}
+dir=$(ensure_ns "$name")
+
+case "$cmd" in
+  "")
+    show_status "$dir"
+    ;;
+  start)
+    ts=$(utc_now)
+    printf '%s\n' "$ts" > "$dir/start.timestamp"
+    rm -f "$dir/stop.timestamp"
+    append_timeline "$dir" "start $ts"
+    echo "$ts"
+    ;;
+  stop)
+    ts=$(utc_now)
+    printf '%s\n' "$ts" > "$dir/stop.timestamp"
+    append_timeline "$dir" "stop $ts"
+    echo "$ts"
+    ;;
+  agent)
+    [[ $# -eq 3 ]] || fail "agent requires FILE"
+    fp=$3
+    [[ -f "$fp" ]] || fail "agent file not found: $fp"
+    abs=$(cd "$(dirname "$fp")" && pwd)/$(basename "$fp")
+    copied="$dir/agents/$(stamp_now)-$(basename "$fp")"
+    cp "$abs" "$copied"
+    printf '%s\n' "$abs" > "$dir/agent.path"
+    printf '%s\n' "$copied" > "$dir/agent.copy"
+    append_timeline "$dir" "agent source=$abs copy=$copied"
+    echo "$copied"
+    ;;
+  audit)
+    command -v aws >/dev/null 2>&1 || fail "aws cli not found"
+    [[ -f "$dir/start.timestamp" ]] || fail "missing start.timestamp; run: cloudvet $name start"
+    [[ -f "$dir/stop.timestamp" ]] || fail "missing stop.timestamp; run: cloudvet $name stop"
+    start=$(<"$dir/start.timestamp")
+    stop=$(<"$dir/stop.timestamp")
+    slug="$(stamp_now)-$(petname)"
+    out="$dir/data-$slug.log"
+    tmp_regions=$(mktemp)
+    cmd_regions > "$tmp_regions"
+    if [[ ! -s "$tmp_regions" ]]; then
+      printf '%s\n' "${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}" > "$tmp_regions"
+    fi
+    {
+      echo "cloudvet audit"
+      echo "namespace: $name"
+      echo "created: $(utc_now)"
+      echo "start: $start"
+      echo "stop: $stop"
+      echo "agent_source: $([[ -f "$dir/agent.path" ]] && cat "$dir/agent.path" || true)"
+      echo "agent_copy: $([[ -f "$dir/agent.copy" ]] && cat "$dir/agent.copy" || true)"
+      echo
+      echo "caller_identity:"
+      aws sts get-caller-identity --output json || true
+      echo
+      echo "regions:"
+      cat "$tmp_regions"
+      echo
+    } > "$out"
+
+    while IFS= read -r region; do
+      [[ -n "$region" ]] || continue
+      {
+        echo
+        echo "## region: $region"
+        aws cloudtrail lookup-events \
+          --region "$region" \
+          --start-time "$start" \
+          --end-time "$stop" \
+          --output json
+      } >> "$out"
+    done < "$tmp_regions"
+    rm -f "$tmp_regions"
+    append_timeline "$dir" "audit start=$start stop=$stop output=$out"
+    echo "$out"
+    ;;
+  status)
+    show_status "$dir"
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
