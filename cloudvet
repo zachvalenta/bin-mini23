@@ -4,15 +4,19 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 usage:
-  cloudvet NAME                 create/show namespace
-  cloudvet NAME start           record UTC start timestamp
-  cloudvet NAME stop            record UTC stop timestamp
-  cloudvet NAME agent FILE      record and copy agent session file
-  cloudvet NAME audit           query CloudTrail from start to stop
-  cloudvet NAME status          show namespace state
+  cloudvet NAME                  create/show namespace
+  cloudvet NAME start            record UTC start timestamp in context.toml
+  cloudvet NAME stop             record UTC stop timestamp in context.toml
+  cloudvet NAME agent SESSION_ID record agent session id in context.toml
+  cloudvet NAME audit            query CloudTrail from start to stop
+  cloudvet NAME status           show namespace state
 
 storage:
   ${XDG_CONFIG_HOME:-$HOME/.config}/cloudvet/NAME
+
+files:
+  context.toml                   start/stop/session metadata
+  MEMORABLE-SLUG.log             CloudTrail audit output
 
 notes:
   - audit queries CloudTrail lookup-events across enabled AWS regions when possible
@@ -30,12 +34,16 @@ utc_now() {
   date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
 
-stamp_now() {
-  date -u +"%Y%m%dT%H%M%SZ"
-}
-
 sanitize_name() {
   printf '%s' "$1" | tr -c 'A-Za-z0-9_.-' '_'
+}
+
+toml_escape() {
+  local v
+  v=$1
+  v=${v//\\/\\\\}
+  v=${v//"/\\"}
+  printf '%s' "$v"
 }
 
 petname() {
@@ -59,35 +67,66 @@ ns_dir() {
   printf '%s/%s' "$(base_dir)" "$safe"
 }
 
+context_path() {
+  printf '%s/context.toml' "$1"
+}
+
 ensure_ns() {
-  local name dir now
+  local name dir ctx
   name=$1
   dir=$(ns_dir "$name")
-  now=$(utc_now)
-  mkdir -p "$dir/agents"
-  if [[ ! -f "$dir/context.md" ]]; then
-    cat > "$dir/context.md" <<EOF
-# cloudvet: $name
-
-created: $now
-
-## timeline
-
+  ctx=$(context_path "$dir")
+  mkdir -p "$dir"
+  if [[ ! -f "$ctx" ]]; then
+    cat > "$ctx" <<'EOF'
+start = ""
+stop = ""
+session = ""
 EOF
   fi
   printf '%s' "$dir"
 }
 
-append_timeline() {
-  local dir msg
+get_context() {
+  local dir key ctx
   dir=$1
-  msg=$2
-  printf -- '- %s %s\n' "$(utc_now)" "$msg" >> "$dir/context.md"
+  key=$2
+  ctx=$(context_path "$dir")
+  awk -F ' = ' -v key="$key" '$1 == key { gsub(/^"|"$/, "", $2); print $2; exit }' "$ctx"
+}
+
+write_context() {
+  local dir start stop session ctx
+  dir=$1
+  start=$2
+  stop=$3
+  session=$4
+  ctx=$(context_path "$dir")
+  cat > "$ctx" <<EOF
+start = "$(toml_escape "$start")"
+stop = "$(toml_escape "$stop")"
+session = "$(toml_escape "$session")"
+EOF
+}
+
+set_context() {
+  local dir key value start stop session
+  dir=$1
+  key=$2
+  value=$3
+  start=$(get_context "$dir" start || true)
+  stop=$(get_context "$dir" stop || true)
+  session=$(get_context "$dir" session || true)
+  case "$key" in
+    start) start=$value ;;
+    stop) stop=$value ;;
+    session) session=$value ;;
+    *) fail "unknown context key: $key" ;;
+  esac
+  write_context "$dir" "$start" "$stop" "$session"
 }
 
 cmd_regions() {
-  local fallback
-  fallback=${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}
   if command -v aws >/dev/null 2>&1; then
     aws ec2 describe-regions \
       --all-regions \
@@ -98,12 +137,31 @@ cmd_regions() {
 }
 
 show_status() {
-  local dir
+  local dir start stop session
   dir=$1
+  start=$(get_context "$dir" start || true)
+  stop=$(get_context "$dir" stop || true)
+  session=$(get_context "$dir" session || true)
   echo "namespace: $dir"
-  [[ -f "$dir/start.timestamp" ]] && echo "start: $(<"$dir/start.timestamp")" || echo "start: <unset>"
-  [[ -f "$dir/stop.timestamp" ]] && echo "stop: $(<"$dir/stop.timestamp")" || echo "stop: <unset>"
-  [[ -f "$dir/agent.path" ]] && echo "agent: $(<"$dir/agent.path")" || echo "agent: <unset>"
+  [[ -n "$start" ]] && echo "start: $start" || echo "start: <unset>"
+  [[ -n "$stop" ]] && echo "stop: $stop" || echo "stop: <unset>"
+  [[ -n "$session" ]] && echo "session: $session" || echo "session: <unset>"
+}
+
+unique_log_path() {
+  local dir slug out i
+  dir=$1
+  slug=$(petname)
+  out="$dir/$slug.log"
+  if [[ ! -e "$out" ]]; then
+    printf '%s' "$out"
+    return
+  fi
+  i=2
+  while [[ -e "$dir/$slug-$i.log" ]]; do
+    i=$((i + 1))
+  done
+  printf '%s' "$dir/$slug-$i.log"
 }
 
 [[ $# -ge 1 ]] || { usage; exit 2; }
@@ -119,37 +177,30 @@ case "$cmd" in
     ;;
   start)
     ts=$(utc_now)
-    printf '%s\n' "$ts" > "$dir/start.timestamp"
-    rm -f "$dir/stop.timestamp"
-    append_timeline "$dir" "start $ts"
+    set_context "$dir" start "$ts"
+    set_context "$dir" stop ""
     echo "$ts"
     ;;
   stop)
     ts=$(utc_now)
-    printf '%s\n' "$ts" > "$dir/stop.timestamp"
-    append_timeline "$dir" "stop $ts"
+    set_context "$dir" stop "$ts"
     echo "$ts"
     ;;
   agent)
-    [[ $# -eq 3 ]] || fail "agent requires FILE"
-    fp=$3
-    [[ -f "$fp" ]] || fail "agent file not found: $fp"
-    abs=$(cd "$(dirname "$fp")" && pwd)/$(basename "$fp")
-    copied="$dir/agents/$(stamp_now)-$(basename "$fp")"
-    cp "$abs" "$copied"
-    printf '%s\n' "$abs" > "$dir/agent.path"
-    printf '%s\n' "$copied" > "$dir/agent.copy"
-    append_timeline "$dir" "agent source=$abs copy=$copied"
-    echo "$copied"
+    [[ $# -eq 3 ]] || fail "agent requires SESSION_ID"
+    session_id=$3
+    [[ -n "$session_id" ]] || fail "empty SESSION_ID"
+    set_context "$dir" session "$session_id"
+    echo "$session_id"
     ;;
   audit)
     command -v aws >/dev/null 2>&1 || fail "aws cli not found"
-    [[ -f "$dir/start.timestamp" ]] || fail "missing start.timestamp; run: cloudvet $name start"
-    [[ -f "$dir/stop.timestamp" ]] || fail "missing stop.timestamp; run: cloudvet $name stop"
-    start=$(<"$dir/start.timestamp")
-    stop=$(<"$dir/stop.timestamp")
-    slug="$(stamp_now)-$(petname)"
-    out="$dir/data-$slug.log"
+    start=$(get_context "$dir" start || true)
+    stop=$(get_context "$dir" stop || true)
+    session=$(get_context "$dir" session || true)
+    [[ -n "$start" ]] || fail "missing start; run: cloudvet $name start"
+    [[ -n "$stop" ]] || fail "missing stop; run: cloudvet $name stop"
+    out=$(unique_log_path "$dir")
     tmp_regions=$(mktemp)
     cmd_regions > "$tmp_regions"
     if [[ ! -s "$tmp_regions" ]]; then
@@ -161,8 +212,7 @@ case "$cmd" in
       echo "created: $(utc_now)"
       echo "start: $start"
       echo "stop: $stop"
-      echo "agent_source: $([[ -f "$dir/agent.path" ]] && cat "$dir/agent.path" || true)"
-      echo "agent_copy: $([[ -f "$dir/agent.copy" ]] && cat "$dir/agent.copy" || true)"
+      echo "session: $session"
       echo
       echo "caller_identity:"
       aws sts get-caller-identity --output json || true
@@ -185,7 +235,6 @@ case "$cmd" in
       } >> "$out"
     done < "$tmp_regions"
     rm -f "$tmp_regions"
-    append_timeline "$dir" "audit start=$start stop=$stop output=$out"
     echo "$out"
     ;;
   status)
