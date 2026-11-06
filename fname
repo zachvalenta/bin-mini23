@@ -1,0 +1,145 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.14"
+# dependencies = [
+#     "rich>=15.0.0",
+# ]
+# ///
+"""Map macOS user-font files to their Homebrew cask and internal font family."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+from collections import defaultdict
+from pathlib import Path
+
+from rich.console import Console
+from rich.table import Table
+
+FONT_SUFFIXES = {".otf", ".otc", ".ttc", ".ttf"}
+RECORD_SEPARATOR = "\x1e"
+FIELD_SEPARATOR = "\x1f"
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as font_file:
+        for chunk in iter(lambda: font_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def homebrew_caskroom() -> Path | None:
+    brew = shutil.which("brew")
+    if not brew:
+        return None
+
+    result = subprocess.run(
+        [brew, "--prefix"], capture_output=True, text=True, check=False
+    )
+    prefix = result.stdout.strip()
+    return Path(prefix) / "Caskroom" if result.returncode == 0 and prefix else None
+
+
+def cask_artifacts(caskroom: Path | None) -> dict[str, list[tuple[str, Path]]]:
+    """Return artifact sources keyed by installed font basename.
+
+    Receipt paths name the files Homebrew installed. The retained Caskroom copy is
+    later hash-checked, so a manually installed file with the same basename is not
+    incorrectly attributed to Homebrew.
+    """
+    artifacts: dict[str, list[tuple[str, Path]]] = defaultdict(list)
+    if caskroom is None:
+        return artifacts
+
+    for receipt_path in caskroom.glob("*/.metadata/INSTALL_RECEIPT.json"):
+        try:
+            receipt = json.loads(receipt_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        cask = receipt_path.parent.parent.name
+        version_dirs = [path for path in receipt_path.parent.parent.iterdir() if path.is_dir()]
+        for artifact in receipt.get("uninstall_artifacts", []):
+            for font in artifact.get("font", []):
+                relative_path = Path(font)
+                for version_dir in version_dirs:
+                    artifacts[relative_path.name].append((cask, version_dir / relative_path))
+    return artifacts
+
+
+def cask_for(font_path: Path, artifacts: dict[str, list[tuple[str, Path]]]) -> str:
+    candidates = artifacts.get(font_path.name, [])
+    if not candidates:
+        return "not Homebrew"
+
+    installed_hash = sha256(font_path)
+    matches = sorted(
+        {
+            cask
+            for cask, source_path in candidates
+            if source_path.is_file() and sha256(source_path) == installed_hash
+        }
+    )
+    return ", ".join(matches) if matches else "not Homebrew"
+
+
+def font_faces(font_path: Path) -> list[tuple[str, str]]:
+    result = subprocess.run(
+        ["fc-scan", "--format", f"%{{family}}{FIELD_SEPARATOR}%{{style}}{RECORD_SEPARATOR}", str(font_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return [("unreadable font", "")]
+
+    faces = []
+    for record in result.stdout.split(RECORD_SEPARATOR):
+        if not record:
+            continue
+        family, _, style = record.partition(FIELD_SEPARATOR)
+        faces.append((family or "unnamed font", style))
+    return faces or [("unnamed font", "")]
+
+
+def main() -> None:
+    console = Console()
+    fonts_dir = Path.home() / "Library" / "Fonts"
+    if not fonts_dir.is_dir():
+        console.print(f"[red]Font directory not found:[/] {fonts_dir}")
+        raise SystemExit(1)
+    if not shutil.which("fc-scan"):
+        console.print("[red]Required command not found:[/] fc-scan (install Fontconfig)")
+        raise SystemExit(1)
+
+    artifacts = cask_artifacts(homebrew_caskroom())
+    table = Table(title="macOS user-font mapping", show_lines=False)
+    table.add_column("Homebrew cask", style="cyan", no_wrap=True)
+    table.add_column("Installed file", style="green")
+    table.add_column("Font family", style="magenta")
+    table.add_column("Style", style="yellow")
+
+    font_paths = sorted(
+        (path for path in fonts_dir.rglob("*") if path.is_file() and path.suffix.lower() in FONT_SUFFIXES),
+        key=lambda path: str(path).lower(),
+    )
+    for font_path in font_paths:
+        cask = cask_for(font_path, artifacts)
+        relative_path = font_path.relative_to(fonts_dir)
+        for family, style in font_faces(font_path):
+            table.add_row(cask, str(relative_path), family, style)
+
+    console.print(table)
+    console.print(
+        "[dim]Cask attribution requires a SHA-256 match with a retained Homebrew "
+        "Caskroom artifact. 'not Homebrew' includes manually installed fonts.[/]"
+    )
+
+
+if __name__ == "__main__":
+    main()
